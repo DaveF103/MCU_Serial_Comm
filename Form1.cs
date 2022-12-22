@@ -14,7 +14,7 @@ namespace MCU_Serial_Comm
         // Declarations
 
         // See "IniFile.cs" class
-        IniFile ini = new IniFile(@"C:\BDevelop\DevStudio\VS2022\WinFormsCoreTest\settings.ini");
+        IniFile ini = new IniFile(@"..\..\..\settings.ini");
         // For release version, put ini in same directory as .exe
         //IniFile ini = new IniFile("settings.ini");
 
