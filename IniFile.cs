@@ -1,12 +1,13 @@
-﻿using System;
+﻿// From: https://stackoverflow.com/questions/217902/reading-writing-an-ini-file
+//   Some modifications for handle possible nulls, added GetSections()
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-
-// Added from: https://stackoverflow.com/questions/217902/reading-writing-an-ini-file
 
 namespace MCU_Serial_Comm
 {
@@ -43,13 +44,11 @@ namespace MCU_Serial_Comm
 
         public void DeleteKey(string Key, string? Section = null)
         {
-            //Write(Key, null, Section ?? EXE);
             Write(Key, "", Section ?? EXE);
         }
 
         public void DeleteSection(string? Section = null)
         {
-            //Write(null, null, Section ?? EXE);
             Write("", "", Section ?? EXE);
         }
 
@@ -62,13 +61,14 @@ namespace MCU_Serial_Comm
         {
             // Added with help from:
             //   http://pinvoke.net/default.aspx/kernel32/GetPrivateProfileSectionNames.html
+            
             string[] rv = { "NoSections0", "NoSections1" };
             uint MAX_BUFFER = 32767;
             IntPtr pReturnedString = Marshal.AllocCoTaskMem((int)MAX_BUFFER);
             long bytesReturned = GetPrivateProfileSectionNames(pReturnedString, MAX_BUFFER, Path);
-            if (bytesReturned == 0)
-                //return null;
-                return rv;
+            
+            if (bytesReturned == 0) return rv;
+
             string ret = Marshal.PtrToStringAnsi(pReturnedString, (int)(bytesReturned * 2)).ToString();
             Marshal.FreeCoTaskMem(pReturnedString);
 

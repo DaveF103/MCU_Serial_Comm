@@ -18,7 +18,6 @@ namespace MCU_Serial_Comm
         // For release version, put ini in same directory as .exe
         //IniFile ini = new IniFile("settings.ini");
 
-        //ListBox programList = new ListBox();
         string iniSectionSelected = "";
 
         // DataGridView variables
@@ -29,7 +28,7 @@ namespace MCU_Serial_Comm
         private DataGridViewColumn dgvValue = new DataGridViewColumn();
         private DataGridViewColumn dgvAction = new DataGridViewColumn();
         private DataGridViewButtonColumn dgvBtns = new DataGridViewButtonColumn();
-        private string[] inSyms = { "", "" };        // Symbols for incoming values from MCU
+        private string[] inSyms = { "", "" };        // Symbols to look for incoming values from MCU
         int grSize;
 
         // SerialPort Variables
@@ -38,7 +37,7 @@ namespace MCU_Serial_Comm
         private int baudRate;
         private delegate void spDelegate(string sData);
 
-        // Other variables
+        // Other controls and variables
         private RichTextBox rtbIn = new RichTextBox();
         private RichTextBox rtbOut = new RichTextBox();
         private TextBox manualOut = new TextBox();
@@ -47,7 +46,6 @@ namespace MCU_Serial_Comm
         private Label labelOut = new Label();
         private Label labelIn = new Label();
         private Label labelGraph = new Label();
-
 
         Stopwatch sw = new Stopwatch();
         double microsPerTick;
@@ -175,16 +173,16 @@ namespace MCU_Serial_Comm
             dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
             Controls.Add(dgv);
 
-            // Button to send Manual Text to MCU
-            manualSend.Text = "Send";
-            Controls.Add(manualSend);
-            manualSend.Click += ManualSend_Click!;
-
             // TextBox for manual entry of Serial input to MCU
             manualOut.BorderStyle = BorderStyle.Fixed3D;
             manualOut.BackColor = Color.Black;
             manualOut.ForeColor = Color.White;
             Controls.Add(manualOut);
+
+            // Button to send Manual Text to MCU
+            manualSend.Text = "Send";
+            Controls.Add(manualSend);
+            manualSend.Click += ManualSend_Click!;
 
             // RichTextBox = Serial messages OUT to MCU
             rtbOut.BorderStyle = BorderStyle.Fixed3D;
@@ -213,36 +211,16 @@ namespace MCU_Serial_Comm
         {
             IniSummary iniSummary = new IniSummary();
             int sectionIndex;
-            bool success = true;
 
-            //throw new NotImplementedException();
+            // In know this is poor form, but am still learning about thread safety in C#
             Application.DoEvents();
 
             // Ini - Get sections, unique baudRates and commID's
             iniSummary = GetIniBZ();
             WriteIniDataToRTB(iniSummary);
+            Application.DoEvents();
             sectionIndex = FindPortWithIniData(iniSummary);
-
-            if (sectionIndex > -1)
-            {
-                try
-                {
-                    serPort1.Open();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message);
-                    success = false;
-                    rtbOut.AppendText("Failed to Open COM Port\n");
-                }
-                if (success)
-                {
-                    serPort1.ReadExisting();
-                    rtbOut.AppendText(serPort1.PortName + " is Open!\n");
-                    iniSectionSelected = iniSummary.names[sectionIndex];
-                    SetupDGV();
-                }
-            }
+            OpenSerialPort(iniSummary, sectionIndex);
         }
 
         private IniSummary GetIniBZ()
@@ -447,6 +425,31 @@ namespace MCU_Serial_Comm
             return rv;
         }
 
+        private void OpenSerialPort(IniSummary iniSummary, int sectionIndex)
+        {
+            bool success = true;
+            if (sectionIndex > -1)
+            {
+                try
+                {
+                    serPort1.Open();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                    success = false;
+                    rtbOut.AppendText("Failed to Open COM Port\n");
+                }
+                if (success)
+                {
+                    serPort1.ReadExisting();
+                    rtbOut.AppendText(serPort1.PortName + " is Open!\n");
+                    iniSectionSelected = iniSummary.names[sectionIndex];
+                    SetupDGV();
+                }
+            }
+        }
+
         private void Dgv_CellContentClick(object? sender, DataGridViewCellEventArgs? e)
         {
             // Event that fires when buttons in DataGridView are clicked
@@ -536,6 +539,7 @@ namespace MCU_Serial_Comm
                 }
             }
         }
+
         private void pictureBox1_Paint(object sender, System.Windows.Forms.PaintEventArgs e)
         {
             // Create a local version of the graphics object for the PictureBox.
@@ -547,12 +551,12 @@ namespace MCU_Serial_Comm
 
             //g.DrawLine(System.Drawing.Pens.White, 10.0F, 10.0F, 100.0F, 100.0F);
 
-            double xc = 390.0f * 0.5f;
+            double xc = 195.0f * 0.5f;
             double yc = xc;
             double pi = Math.PI;
             double dtr = pi / 180.0;
-            double r1 = 360.0 * 0.5;
-            double r2 = 380.0 * 0.5;
+            double r1 = 180.0 * 0.5;
+            double r2 = 190.0 * 0.5;
             for (int i = 0; i < 200; i++)
             {
                 double di = (double)i;
@@ -618,7 +622,6 @@ namespace MCU_Serial_Comm
             manualOut.Text = "";
             write_To_Serial(spData);
         }
-
 
         private void write_To_Serial(string spData)
         {
