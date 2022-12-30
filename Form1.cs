@@ -7,8 +7,10 @@ using System.IO.Ports;
 using System.Xml.Linq;
 using static System.Collections.Specialized.BitVector32;
 
+
 namespace MCU_Serial_Comm
 {
+
     public partial class Form1 : Form
     {
         // Declarations
@@ -28,7 +30,7 @@ namespace MCU_Serial_Comm
         private DataGridViewColumn dgvValue = new DataGridViewColumn();
         private DataGridViewColumn dgvAction = new DataGridViewColumn();
         private DataGridViewButtonColumn dgvBtns = new DataGridViewButtonColumn();
-        private string[] inSyms = { "", "" };        // Symbols to look for incoming values from MCU
+        private string[] inSyms = { "", "" };        // Symbols to look for incoming values from MCU, placeholder array until read from ini
         int grSize;
 
         // SerialPort Variables
@@ -168,6 +170,8 @@ namespace MCU_Serial_Comm
             dgvAction.HeaderText = "Action";
 
             dgv.CellContentClick += Dgv_CellContentClick;
+            dgv.CurrentCellDirtyStateChanged += Dgv_CurrentCellDirtyStateChanged;
+            dgv.CellValueChanged += Dgv_CellValueChanged;
             dgv.RowPostPaint += Dgv_RowPostPaint;
 
             dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells;
@@ -480,6 +484,24 @@ namespace MCU_Serial_Comm
             e.Graphics.DrawString(rowIdx, this.Font, foreBrush, headerBounds, hdrFormat);
         }
 
+        private void Dgv_CurrentCellDirtyStateChanged(object? sender, EventArgs e)
+        {
+            if (dgv.IsCurrentCellDirty)
+            {
+                dgv.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            }
+        }
+
+        private void Dgv_CellValueChanged(object? sender, DataGridViewCellEventArgs e)
+        {
+            int rowID = e.RowIndex;
+            if (dgv.Rows[rowID].Cells[5].Value is Int32)
+            {
+                dgv.Rows[rowID].Cells[3].Value = dgv.Rows[rowID].Cells[5].Value;
+                processAction(rowID);
+            }
+        }
+
         private void SetupDGV()
         {
             int i = 0;
@@ -491,6 +513,9 @@ namespace MCU_Serial_Comm
             bool foundNextRow = true;
             int gr3 = -1;
             bool gr5 = false;
+            char[] gr5Separators = new char[] { '(', '<', ')' };
+            int gr5Min = 0;
+            int gr5Max = 100;
             iniItem = strItemPrefix + i.ToString();
 
             while (foundNextRow)
@@ -509,7 +534,7 @@ namespace MCU_Serial_Comm
                     baudRate = gr3;
                 }
                 if (gridRow[1] == "Z") serialCode = gr3;
-                if (gridRow[5] == "true") gr5 = true;
+                if (gridRow[5] == "1") gr5 = true;
                 DataGridViewTextBoxCell txtCell = new DataGridViewTextBoxCell();
                 txtCell.Style.BackColor = Color.Black;
                 DataGridViewButtonCell btnCell = new DataGridViewButtonCell();
@@ -520,6 +545,23 @@ namespace MCU_Serial_Comm
                 if (gr5 == false)
                 {
                     dgv.Rows[i].Cells[5] = txtCell;
+                }
+                //CalendarCell calCell = new CalendarCell();
+                //calCell.Style.BackColor = Color.Blue;
+                //if (gridRow[1] == "C")
+                //{
+                //    dgv.Rows[i].Cells[5] = calCell;
+                //}
+                if (gridRow[0] == "outSlider")
+                {
+                    string[] gr5Subs = gridRow[5].Split(gr5Separators, StringSplitOptions.RemoveEmptyEntries);
+                    gr5Min = Convert.ToInt32(gr5Subs[0].Trim());
+                    gr5Max = Convert.ToInt32(gr5Subs[1].Trim());
+                    TrackBarCell tbCell = new TrackBarCell(gr5Min, gr5Max);
+                    tbCell.Style.BackColor = Color.FromArgb(255, 0, 0, 150);
+                    tbCell.Style.ForeColor = Color.Yellow;
+                    tbCell.Value = gr3;
+                    dgv.Rows[i].Cells[5] = tbCell;
                 }
                 i++;
                 iniItem = strItemPrefix + i.ToString();
@@ -580,7 +622,9 @@ namespace MCU_Serial_Comm
             string[] args;
             int i;
             int dgvIdx;
+            //string? strSlider;
 
+            //var strSlider = dgv.Rows[rowID].Cells[5].Value;
             strAction = dgv.Rows[rowID].Cells[4].Value.ToString();
             actionQty = strAction!.Length;
             args = new string[actionQty];
@@ -705,4 +749,424 @@ namespace MCU_Serial_Comm
                 elapsedMillis.ToString("N0") + " millis, " + elapsedMicros.ToString("N0") + " micros)");
         }
     }
+
+
+    public class TrackBarCell : DataGridViewTextBoxCell
+    {
+        int iMin;
+        int iMax;
+
+        public TrackBarCell() : base()
+        {
+            // Don't need to access any base members for this control
+            //this.Value = 55;
+        }
+        public TrackBarCell(int min, int max)
+        {
+            iMin = min;
+            iMax = max;
+        }
+
+        public override void InitializeEditingControl(int rowIndex, object initialFormattedValue, DataGridViewCellStyle dataGridViewCellStyle)
+        {
+            // Set the value of the editing control to the current cell value.
+            base.InitializeEditingControl(rowIndex, initialFormattedValue, dataGridViewCellStyle);
+
+            TrackBarEditingControl ctl = DataGridView.EditingControl as TrackBarEditingControl;
+            // Use the default row value when Value property is null.
+            if (this.Value == null)
+            {
+                ctl.Value = 0;      //(DateTime)this.DefaultNewRowValue;
+            }
+            else
+            {
+                ctl.Value = (int)this.Value;
+                ctl.Minimum = this.iMin;
+                ctl.Maximum = this.iMax;
+            }
+        }
+
+        public override Type EditType
+        {
+            get
+            {
+                // Return the type of the editing control that CalendarCell uses.
+                return typeof(TrackBarEditingControl);
+            }
+        }
+
+        public override Type ValueType
+        {
+            get
+            {
+                // Return the type of the value that CalendarCell contains.
+                return typeof(int);
+            }
+        }
+
+        public override object DefaultNewRowValue
+        {
+            get
+            {
+                // Use the current date and time as the default value.
+                return 4;
+            }
+        }
+    }
+
+    class TrackBarEditingControl : TrackBar, IDataGridViewEditingControl
+    {
+        DataGridView ?dataGridView;
+        private bool valueChanged = false;
+        int rowIndex;
+
+        public TrackBarEditingControl()
+        {
+            // Don't need these, set from data in settings.ini
+            //this.Minimum = 0;
+            //this.Maximum = 255;
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingControlFormattedValue property.
+        public object EditingControlFormattedValue
+        {
+            get
+            {
+                //Debug.WriteLine(this);
+                return this.Value.ToString();
+            }
+            set
+            {
+                if (value is Int32)
+                {
+                    try
+                    {
+                        this.Value = (int)value;
+                    }
+                    catch
+                    {
+                        this.Value = 0;
+                    }
+                }
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.GetEditingControlFormattedValue method.
+        public object GetEditingControlFormattedValue(DataGridViewDataErrorContexts context)
+        {
+            return EditingControlFormattedValue;
+        }
+
+        // Implements the IDataGridViewEditingControl.ApplyCellStyleToEditingControl method.
+        public void ApplyCellStyleToEditingControl(DataGridViewCellStyle dataGridViewCellStyle)
+        {
+            this.Font = dataGridViewCellStyle.Font;
+            this.ForeColor = dataGridViewCellStyle.ForeColor;
+            this.BackColor = dataGridViewCellStyle.BackColor;
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingControlRowIndex property.
+        public int EditingControlRowIndex
+        {
+            get
+            {
+                return rowIndex;
+            }
+            set
+            {
+                rowIndex = value;
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingControlWantsInputKey method.
+        public bool EditingControlWantsInputKey(Keys key, bool dataGridViewWantsInputKey)
+        {
+            // Let the DateTimePicker handle the keys listed.
+            switch (key & Keys.KeyCode)
+            {
+                case Keys.Left:
+                case Keys.Up:
+                case Keys.Down:
+                case Keys.Right:
+                case Keys.Home:
+                case Keys.End:
+                case Keys.PageDown:
+                case Keys.PageUp:
+                    return true;
+                default:
+                    return !dataGridViewWantsInputKey;
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.PrepareEditingControlForEdit method.
+        public void PrepareEditingControlForEdit(bool selectAll)
+        {
+            // No preparation needs to be done.
+        }
+
+        // Implements the IDataGridViewEditingControl.RepositionEditingControlOnValueChange property.
+        public bool RepositionEditingControlOnValueChange
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingControlDataGridView property.
+        public DataGridView? EditingControlDataGridView
+        {
+            get
+            {
+                return dataGridView;
+            }
+            set
+            {
+                dataGridView = value;
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingControlValueChanged property.
+        public bool EditingControlValueChanged
+        {
+            get
+            {
+                return valueChanged;
+            }
+            set
+            {
+                valueChanged = value;
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingPanelCursor property.
+        public Cursor EditingPanelCursor
+        {
+            get
+            {
+                return base.Cursor;
+            }
+        }
+
+        protected override void OnValueChanged(EventArgs eventargs)
+        {
+            // Notify the DataGridView that the contents of the cell have changed.
+            valueChanged = true;
+            this.EditingControlDataGridView.NotifyCurrentCellDirty(true);
+            base.OnValueChanged(eventargs);
+        }
+    }
+
+    /*
+    // Original code from MS article: "How to: Host Controls in Windows Forms DataGridView Cells"
+    // From: https://learn.microsoft.com/en-us/dotnet/desktop/winforms/controls/how-to-host-controls-in-windows-forms-datagridview-cells?view=netframeworkdesktop-4.8
+    // Modified above for TrackBar (Slider) control
+    public class CalendarCell : DataGridViewTextBoxCell
+    {
+
+        public CalendarCell()
+            : base()
+        {
+            // Use the short date format.
+            this.Style.Format = "d";
+        }
+
+        public override void InitializeEditingControl(int rowIndex, object
+            initialFormattedValue, DataGridViewCellStyle dataGridViewCellStyle)
+        {
+            // Set the value of the editing control to the current cell value.
+            base.InitializeEditingControl(rowIndex, initialFormattedValue,
+                dataGridViewCellStyle);
+            CalendarEditingControl ctl =
+                DataGridView.EditingControl as CalendarEditingControl;
+            // Use the default row value when Value property is null.
+            if (this.Value == null)
+            {
+                ctl.Value = (DateTime)this.DefaultNewRowValue;
+            }
+            else
+            {
+                ctl.Value = (DateTime)this.Value;
+            }
+        }
+
+        public override Type EditType
+        {
+            get
+            {
+                // Return the type of the editing control that CalendarCell uses.
+                return typeof(CalendarEditingControl);
+            }
+        }
+
+        public override Type ValueType
+        {
+            get
+            {
+                // Return the type of the value that CalendarCell contains.
+
+                return typeof(DateTime);
+            }
+        }
+
+        public override object DefaultNewRowValue
+        {
+            get
+            {
+                // Use the current date and time as the default value.
+                return DateTime.Now;
+            }
+        }
+    }
+
+    class CalendarEditingControl : DateTimePicker, IDataGridViewEditingControl
+    {
+        DataGridView dataGridView;
+        private bool valueChanged = false;
+        int rowIndex;
+
+        public CalendarEditingControl()
+        {
+            this.Format = DateTimePickerFormat.Short;
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingControlFormattedValue
+        // property.
+        public object EditingControlFormattedValue
+        {
+            get
+            {
+                return this.Value.ToShortDateString();
+            }
+            set
+            {
+                if (value is String)
+                {
+                    try
+                    {
+                        // This will throw an exception of the string is
+                        // null, empty, or not in the format of a date.
+                        this.Value = DateTime.Parse((String)value);
+                    }
+                    catch
+                    {
+                        // In the case of an exception, just use the
+                        // default value so we're not left with a null
+                        // value.
+                        this.Value = DateTime.Now;
+                    }
+                }
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.GetEditingControlFormattedValue method.
+        public object GetEditingControlFormattedValue(
+            DataGridViewDataErrorContexts context)
+        {
+            return EditingControlFormattedValue;
+        }
+
+        // Implements the IDataGridViewEditingControl.ApplyCellStyleToEditingControl method.
+        public void ApplyCellStyleToEditingControl(
+            DataGridViewCellStyle dataGridViewCellStyle)
+        {
+            this.Font = dataGridViewCellStyle.Font;
+            this.CalendarForeColor = dataGridViewCellStyle.ForeColor;
+            this.CalendarMonthBackground = dataGridViewCellStyle.BackColor;
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingControlRowIndex property.
+        public int EditingControlRowIndex
+        {
+            get
+            {
+                return rowIndex;
+            }
+            set
+            {
+                rowIndex = value;
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingControlWantsInputKey method.
+        public bool EditingControlWantsInputKey(
+            Keys key, bool dataGridViewWantsInputKey)
+        {
+            // Let the DateTimePicker handle the keys listed.
+            switch (key & Keys.KeyCode)
+            {
+                case Keys.Left:
+                case Keys.Up:
+                case Keys.Down:
+                case Keys.Right:
+                case Keys.Home:
+                case Keys.End:
+                case Keys.PageDown:
+                case Keys.PageUp:
+                    return true;
+                default:
+                    return !dataGridViewWantsInputKey;
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.PrepareEditingControlForEdit method.
+        public void PrepareEditingControlForEdit(bool selectAll)
+        {
+            // No preparation needs to be done.
+        }
+
+        // Implements the IDataGridViewEditingControl.RepositionEditingControlOnValueChange property.
+        public bool RepositionEditingControlOnValueChange
+        {
+            get
+            {
+                return false;
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingControlDataGridView property.
+        public DataGridView EditingControlDataGridView
+        {
+            get
+            {
+                return dataGridView;
+            }
+            set
+            {
+                dataGridView = value;
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingControlValueChanged property.
+        public bool EditingControlValueChanged
+        {
+            get
+            {
+                return valueChanged;
+            }
+            set
+            {
+                valueChanged = value;
+            }
+        }
+
+        // Implements the IDataGridViewEditingControl.EditingPanelCursor property.
+        public Cursor EditingPanelCursor
+        {
+            get
+            {
+                return base.Cursor;
+            }
+        }
+
+        protected override void OnValueChanged(EventArgs eventargs)
+        {
+            // Notify the DataGridView that the contents of the cell have changed.
+            valueChanged = true;
+            this.EditingControlDataGridView.NotifyCurrentCellDirty(true);
+            base.OnValueChanged(eventargs);
+        }
+    }
+    */
+
 }
