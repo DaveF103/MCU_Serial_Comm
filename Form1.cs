@@ -108,8 +108,16 @@ namespace MCU_Serial_Comm
             this.BackColor = Color.Black;
             this.ForeColor = Color.White;
 
+            Screen screen = Screen.FromControl(this);
+            Rectangle workingArea = screen.WorkingArea;
+            this.Location = new Point()
+            {
+                X = Math.Max(workingArea.X, workingArea.X + (workingArea.Width - this.Width) / 2),
+                Y = Math.Max(workingArea.Y, workingArea.Y + (workingArea.Height - this.Height) / 2)
+            };
+        
             // Control Placement
-            this.Location = new Point(800, 100);
+            //this.Location = new Point(800, 100);
             this.ClientSize = new Size(800, 1350);
             dgv.Location = new Point(25, 25);
             dgv.Size = new Size(450, 525);
@@ -389,7 +397,9 @@ namespace MCU_Serial_Comm
                         if (successOpen)
                         {
                             rtbOut.AppendText("    sp.Open successful\n");
-                            Thread.Sleep(2000);
+                            Thread.Sleep(250);
+                            strFromSP = sp.ReadExisting();
+                            rtbOut.AppendText("      Existing = [" + strFromSP + "]\n");
                             successReadLn = true;
                             strFromSP = "";
                             sp.WriteLine("Z");
@@ -406,6 +416,7 @@ namespace MCU_Serial_Comm
                             if (successReadLn)
                             {
                                 strFromSP = strFromSP.Trim('\r', '\n');
+                                rtbOut.AppendText("      strFromSP = [" + strFromSP + "]\n");
                                 for (i = 0; i < iniSummary.commIDs.GetLength(0); i++)
                                 {
                                     commID = iniSummary.commIDs[i].ToString();
