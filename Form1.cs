@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.IO.Ports;
+using System.Windows.Forms;
 using System.Xml.Linq;
 using static System.Collections.Specialized.BitVector32;
 
@@ -56,6 +57,13 @@ namespace MCU_Serial_Comm
         private PictureBox pictureBox1 = new PictureBox();
         // Cache font instead of recreating font objects each time we paint.
         private Font fnt = new Font("Arial", 10);
+        private bool haveNewX = false;
+        private bool haveNewY = false;
+        private float x1f = 0.0f;
+        private float y1f = 0.0f;
+        private float x2f = 0.0f;
+        private float y2f = 0.0f;
+
 
         private struct IniSummary
         {
@@ -101,26 +109,26 @@ namespace MCU_Serial_Comm
             this.ForeColor = Color.White;
 
             // Control Placement
-            this.Location = new Point(100, 100);
-            this.ClientSize = new Size(850, 800);
+            this.Location = new Point(800, 100);
+            this.ClientSize = new Size(800, 1350);
             dgv.Location = new Point(25, 25);
             dgv.Size = new Size(450, 525);
             manualOut.Location = new Point(500, 25);
-            manualOut.Size = new Size(250, 25);
-            manualSend.Location = new Point(775, 25);
+            manualOut.Size = new Size(200, 25);
+            manualSend.Location = new Point(725, 25);
             manualSend.Size = new Size(50, 25);
             rtbOut.Location = new Point(500, 50);
-            rtbOut.Size = new Size(325, 225);
+            rtbOut.Size = new Size(275, 225);
             rtbIn.Location = new Point(500, 300);
-            rtbIn.Size = new Size(325, 250);
+            rtbIn.Size = new Size(275, 250);
             pictureBox1.Location = new Point(25, 575);
-            pictureBox1.Size = new Size(800, 200);
+            pictureBox1.Size = new Size(750, 750);
             labelDgv.Location = new Point(25, 8);
             labelDgv.Size = new Size(175, 17);
             labelOut.Location = new Point(500, 8);
-            labelOut.Size = new Size(225, 17);
+            labelOut.Size = new Size(175, 17);
             labelIn.Location = new Point(500, 283);
-            labelIn.Size = new Size(225, 17);
+            labelIn.Size = new Size(175, 17);
             labelGraph.Location = new Point(25, 558);
             labelGraph.Size = new Size(175, 17);
 
@@ -382,9 +390,9 @@ namespace MCU_Serial_Comm
                         {
                             rtbOut.AppendText("    sp.Open successful\n");
                             Thread.Sleep(2000);
-                            sp.WriteLine("Z");
-                            strFromSP = "";
                             successReadLn = true;
+                            strFromSP = "";
+                            sp.WriteLine("Z");
                             try
                             {
                                 strFromSP = sp.ReadLine();
@@ -593,6 +601,7 @@ namespace MCU_Serial_Comm
 
             //g.DrawLine(System.Drawing.Pens.White, 10.0F, 10.0F, 100.0F, 100.0F);
 
+            /*
             double xc = 195.0f * 0.5f;
             double yc = xc;
             double pi = Math.PI;
@@ -613,6 +622,7 @@ namespace MCU_Serial_Comm
                 float y2f = (float)y2;
                 g.DrawLine(System.Drawing.Pens.White, x1f, y1f, x2f, y2f);
             }
+            */
         }
 
         private void processAction(int rowID)
@@ -682,25 +692,28 @@ namespace MCU_Serial_Comm
 
         private void serPort1_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            serPort1.ReadTimeout = 200;
+            serPort1.ReadTimeout = 100;
             string str = "";
-            try
+            while (serPort1.BytesToRead > 0)
             {
-                str = serPort1.ReadLine();
-                str = str.Trim();
-                //spDelegate from: https://forum.MCU.cc/t/reading-serial-data-from-MCU-in-windows-forms-application/898994/6
-                this.BeginInvoke((new spDelegate(addStringRtbIn)), str);
-            }
-            catch (Exception ex)
-            {
-                if (ex.Message != "The operation has timed out.")
+                try
                 {
-                    MessageBox.Show(ex.Message);
+                    str = serPort1.ReadLine();
+                    str = str.Trim();
+                    //spDelegate from: https://forum.MCU.cc/t/reading-serial-data-from-MCU-in-windows-forms-application/898994/6
+                    this.BeginInvoke((new spDelegate(addStringRtbIn)), str);
                 }
-            }
-            if ((str.Length > 2) && (str.Substring(1, 1) == ":"))
-            {
-                this.BeginInvoke((new spDelegate(showResponseInDGV)), str);
+                catch (Exception ex)
+                {
+                    if (ex.Message != "The operation has timed out.")
+                    {
+                        MessageBox.Show(ex.Message);
+                    }
+                }
+                if ((str.Length > 2) && (str.Substring(1, 1) == ":"))
+                {
+                    this.BeginInvoke((new spDelegate(showResponseInDGV)), str);
+                }
             }
         }
 
@@ -735,6 +748,27 @@ namespace MCU_Serial_Comm
                 {
                     dgvRow = GetDgvRowFromSymbol(inSymbol);
                     dgv.Rows[dgvRow].Cells[3].Value = inValue;
+                    /*
+                    if (inSymbol == "x")
+                    {
+                        haveNewX = true;
+                        x2f = Convert.ToSingle(inValue);
+                    }
+                    if (inSymbol == "y")
+                    {
+                        haveNewY = true;
+                        y2f = Convert.ToSingle(inValue);
+                    }
+                    if ((haveNewX) && (haveNewY))
+                    {
+                        Graphics gfx = pictureBox1.CreateGraphics();
+                        gfx.DrawLine(System.Drawing.Pens.White, 375 + x1f, 375 + y1f, 375 + x2f, 375 + y2f);
+                        x1f = x2f;
+                        y1f = y2f;
+                        haveNewX = false;
+                        haveNewY = false;
+                    }
+                    */
                 }
             }
         }
